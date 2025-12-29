@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from typing import Optional, Any
 
 
+# Track last history position written to file for each file path
+_last_written_positions = {}
+
+
 @dataclass
 class RedirectionConfig:
     """Configuration for I/O redirection."""
@@ -115,12 +119,20 @@ def history_command(*args):
     if args and len(args) >= 2 and args[0] == '-a':
         history_file_path = args[1]
         try:
+            history_length = readline.get_current_history_length()
+            
+            # Get the last written position for this file
+            last_written = _last_written_positions.get(history_file_path, 0)
+            
+            # Only append commands since the last write
             with open(history_file_path, 'a') as f:
-                history_length = readline.get_current_history_length()
-                for i in range(1, history_length + 1):
+                for i in range(last_written + 1, history_length + 1):
                     item = readline.get_history_item(i)
                     if item:
                         f.write(item + '\n')
+            
+            # Update the last written position
+            _last_written_positions[history_file_path] = history_length
         except Exception as e:
             print(f"history: {history_file_path}: {e}")
         return
