@@ -80,7 +80,7 @@ def cd_command(dir=None):
 
 
 def history_command(*args):
-    """Display command history, read from file, or write to file."""
+    """Display command history, read from file, write to file, or append to file."""
     # Check for -r flag to read history from file
     if args and len(args) >= 2 and args[0] == '-r':
         history_file_path = args[1]
@@ -102,6 +102,20 @@ def history_command(*args):
         history_file_path = args[1]
         try:
             with open(history_file_path, 'w') as f:
+                history_length = readline.get_current_history_length()
+                for i in range(1, history_length + 1):
+                    item = readline.get_history_item(i)
+                    if item:
+                        f.write(item + '\n')
+        except Exception as e:
+            print(f"history: {history_file_path}: {e}")
+        return
+    
+    # Check for -a flag to append history to file
+    if args and len(args) >= 2 and args[0] == '-a':
+        history_file_path = args[1]
+        try:
+            with open(history_file_path, 'a') as f:
                 history_length = readline.get_current_history_length()
                 for i in range(1, history_length + 1):
                     item = readline.get_history_item(i)
