@@ -4,7 +4,7 @@ import subprocess
 import shlex
 import readline
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 
 @dataclass
@@ -14,6 +14,7 @@ class RedirectionConfig:
     stderr_file: Optional[str] = None
     stdout_append: bool = False
     stderr_append: bool = False
+    stdin_pipe: Optional[Any] = None
 
 
 def find_executable_in_path(cmd):
@@ -142,7 +143,12 @@ def display_matches(substitution, matches, longest_match_length):
 def setup_readline():
     """Configure readline for tab completion."""
     readline.set_completer(completer)
-    readline.parse_and_bind("tab: complete")
+    # Bind tab to complete - try multiple methods for compatibility
+    if readline.__doc__ and 'libedit' in readline.__doc__:
+        # macOS uses libedit instead of GNU readline
+        readline.parse_and_bind("bind ^I rl_complete")
+    else:
+        readline.parse_and_bind("tab: complete")
     # Disable default filename completion behavior
     readline.set_completer_delims(' \t\n;')
     # Set custom display for multiple matches
@@ -162,19 +168,22 @@ def run_external_program(command, args, redir: RedirectionConfig):
     
     if not executable_path:
         print(f"{command}: command not found")
-        return
+        return None
     
     try:
         stdout_handle = open_redirect_file(redir.stdout_file, redir.stdout_append)
         stderr_handle = open_redirect_file(redir.stderr_file, redir.stderr_append)
         
         try:
-            subprocess.run(
+            result = subprocess.run(
                 [command] + args,
                 executable=executable_path,
-                stdout=stdout_handle,
-                stderr=stderr_handle
+                stdin=redir.stdin_pipe,
+                stdout=stdout_handle if stdout_handle else subprocess.PIPE if redir.stdin_pipe is not None else None,
+                stderr=stderr_handle,
+                capture_output=False
             )
+            return result
         finally:
             if stdout_handle:
                 stdout_handle.close()
@@ -182,6 +191,7 @@ def run_external_program(command, args, redir: RedirectionConfig):
                 stderr_handle.close()
     except Exception as e:
         print(f"{command}: {e}")
+        return None
 
 
 def extract_redirection_info(token, next_token):
@@ -245,6 +255,7 @@ def execute_builtin(command, args, redir: RedirectionConfig):
     """Execute a builtin command with optional I/O redirection."""
     original_stdout = sys.stdout
     original_stderr = sys.stderr
+    original_stdin = sys.stdin
     stdout_file_handle = None
     stderr_file_handle = None
     
@@ -255,19 +266,173 @@ def execute_builtin(command, args, redir: RedirectionConfig):
         if redir.stderr_file:
             stderr_file_handle = open_redirect_file(redir.stderr_file, redir.stderr_append)
             sys.stderr = stderr_file_handle
+        if redir.stdin_pipe:
+            sys.stdin = redir.stdin_pipe
         
         BUILTINS[command](*args)
     finally:
         sys.stdout = original_stdout
         sys.stderr = original_stderr
+        sys.stdin = original_stdin
         if stdout_file_handle:
             stdout_file_handle.close()
         if stderr_file_handle:
             stderr_file_handle.close()
 
 
+def parse_pipeline(usr_input):
+    """Parse input for pipeline operator (|)."""
+    # Find pipe operator outside of quotes
+    parts = []
+    current = []
+    in_quote = None
+    escaped = False
+    
+    for char in usr_input:
+        if escaped:
+            current.append(char)
+            escaped = False
+            continue
+        
+        if char == '\\':
+            escaped = True
+            current.append(char)
+            continue
+        
+        if char in ('"', "'"):
+            if in_quote == char:
+                in_quote = None
+            elif not in_quote:
+                in_quote = char
+            current.append(char)
+        elif char == '|' and not in_quote:
+            parts.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    
+    if current:
+        parts.append(''.join(current).strip())
+    
+    return parts
+
+
+def execute_pipeline(commands):
+    """Execute a pipeline of commands."""
+    if len(commands) != 2:
+        # For now, only support dual command pipeline
+        process_command(commands[0])
+        return
+    
+    # Parse first command
+    try:
+        parts1 = shlex.split(commands[0])
+    except ValueError:
+        parts1 = commands[0].split()
+    
+    parts1, redir1 = parse_redirection(parts1)
+    if not parts1:
+        return
+    
+    cmd1, args1 = parts1[0], parts1[1:]
+    
+    # Parse second command
+    try:
+        parts2 = shlex.split(commands[1])
+    except ValueError:
+        parts2 = commands[1].split()
+    
+    parts2, redir2 = parse_redirection(parts2)
+    if not parts2:
+        return
+    
+    cmd2, args2 = parts2[0], parts2[1:]
+    
+    # Execute pipeline
+    if cmd1 in BUILTINS:
+        # Builtin as first command - capture output to string
+        from io import StringIO
+        original_stdout = sys.stdout
+        captured_output = StringIO()
+        
+        try:
+            redir1.stdout_file = None  # Override stdout redirection
+            sys.stdout = captured_output
+            execute_builtin(cmd1, args1, redir1)
+            sys.stdout = original_stdout
+            output = captured_output.getvalue()
+            
+            # Feed to second command
+            if cmd2 in BUILTINS:
+                # Both builtins - not common but handle it
+                from io import StringIO
+                redir2.stdin_pipe = StringIO(output)
+                execute_builtin(cmd2, args2, redir2)
+            else:
+                # Second is external
+                executable_path = find_executable_in_path(cmd2)
+                if executable_path:
+                    subprocess.run(
+                        [cmd2] + args2,
+                        executable=executable_path,
+                        input=output,
+                        text=True
+                    )
+                else:
+                    print(f"{cmd2}: command not found")
+        finally:
+            sys.stdout = original_stdout
+    else:
+        # External command as first
+        executable_path1 = find_executable_in_path(cmd1)
+        if not executable_path1:
+            print(f"{cmd1}: command not found")
+            return
+        
+        if cmd2 in BUILTINS:
+            # First external, second builtin
+            result = subprocess.run(
+                [cmd1] + args1,
+                executable=executable_path1,
+                capture_output=True,
+                text=True
+            )
+            from io import StringIO
+            redir2.stdin_pipe = StringIO(result.stdout)
+            execute_builtin(cmd2, args2, redir2)
+        else:
+            # Both external - use pipe
+            executable_path2 = find_executable_in_path(cmd2)
+            if not executable_path2:
+                print(f"{cmd2}: command not found")
+                return
+            
+            # Create pipe
+            proc1 = subprocess.Popen(
+                [cmd1] + args1,
+                executable=executable_path1,
+                stdout=subprocess.PIPE
+            )
+            
+            proc2 = subprocess.Popen(
+                [cmd2] + args2,
+                executable=executable_path2,
+                stdin=proc1.stdout
+            )
+            
+            if proc1.stdout:
+                proc1.stdout.close()
+            proc2.communicate()
+
+
 def process_command(usr_input):
     """Parse and execute a single command."""
+    # Check for pipeline first
+    pipeline_parts = parse_pipeline(usr_input)
+    if len(pipeline_parts) > 1:
+        execute_pipeline(pipeline_parts)
+        return
+    
     try:
         parts = shlex.split(usr_input)
     except ValueError:
