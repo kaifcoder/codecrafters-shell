@@ -67,7 +67,7 @@ def run_external_program(command, args):
     
     # Execute the program with the command name as argv[0] followed by arguments
     try:
-        subprocess.run([executable_path] + args)
+        subprocess.run([command] + args, executable=executable_path)
     except Exception as e:
         print(f"{command}: {e}")
 
