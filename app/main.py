@@ -78,7 +78,7 @@ BUILTINS = {
 }
 
 
-def run_external_program(command, args):
+def run_external_program(command, args, stdout_file=None):
     """Execute an external program found in PATH."""
     executable_path = find_executable_in_path(command)
     
@@ -88,9 +88,79 @@ def run_external_program(command, args):
     
     # Execute the program with the command name as argv[0] followed by arguments
     try:
-        subprocess.run([command] + args, executable=executable_path)
+        if stdout_file:
+            with open(stdout_file, 'w') as f:
+                subprocess.run([command] + args, executable=executable_path, stdout=f)
+        else:
+            subprocess.run([command] + args, executable=executable_path)
     except Exception as e:
         print(f"{command}: {e}")
+
+
+def parse_redirection(parts):
+    """Parse command parts for stdout redirection (> or 1>)."""
+    stdout_file = None
+    filtered_parts = []
+    i = 0
+    
+    while i < len(parts):
+        if parts[i] in ('>', '1>'):
+            # Next part is the filename
+            if i + 1 < len(parts):
+                stdout_file = parts[i + 1]
+                i += 2
+            else:
+                i += 1
+        elif parts[i].startswith('>'):
+            # Handle cases like >file or 1>file (no space)
+            if parts[i].startswith('1>'):
+                stdout_file = parts[i][2:]
+            else:
+                stdout_file = parts[i][1:]
+            i += 1
+        else:
+            filtered_parts.append(parts[i])
+            i += 1
+    
+    return filtered_parts, stdout_file
+
+
+def execute_builtin(command, args, stdout_file):
+    """Execute a builtin command with optional stdout redirection."""
+    if stdout_file:
+        original_stdout = sys.stdout
+        try:
+            with open(stdout_file, 'w') as f:
+                sys.stdout = f
+                BUILTINS[command](*args)
+        finally:
+            sys.stdout = original_stdout
+    else:
+        BUILTINS[command](*args)
+
+
+def process_command(usr_input):
+    """Parse and execute a single command."""
+    # Parse input with quote handling
+    try:
+        parts = shlex.split(usr_input)
+    except ValueError:
+        # Handle unclosed quotes
+        parts = usr_input.split()
+    
+    # Parse for redirections
+    parts, stdout_file = parse_redirection(parts)
+    
+    if not parts:
+        return
+        
+    command = parts[0]
+    args = parts[1:]
+    
+    if command in BUILTINS:
+        execute_builtin(command, args, stdout_file)
+    else:
+        run_external_program(command, args, stdout_file)
 
 
 def main():
@@ -104,20 +174,7 @@ def main():
             if not usr_input:
                 continue
             
-            # Parse input with quote handling
-            try:
-                parts = shlex.split(usr_input)
-            except ValueError:
-                # Handle unclosed quotes
-                parts = usr_input.split()
-                
-            command = parts[0]
-            args = parts[1:]
-            
-            if command in BUILTINS:
-                BUILTINS[command](*args)
-            else:
-                run_external_program(command, args)
+            process_command(usr_input)
                 
         except EOFError:
             break
