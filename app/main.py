@@ -319,110 +319,127 @@ def parse_pipeline(usr_input):
 
 def execute_pipeline(commands):
     """Execute a pipeline of commands."""
-    if len(commands) != 2:
-        # For now, only support dual command pipeline
+    if len(commands) == 1:
         process_command(commands[0])
         return
     
-    # Parse first command
-    try:
-        parts1 = shlex.split(commands[0])
-    except ValueError:
-        parts1 = commands[0].split()
-    
-    parts1, redir1 = parse_redirection(parts1)
-    if not parts1:
-        return
-    
-    cmd1, args1 = parts1[0], parts1[1:]
-    
-    # Parse second command
-    try:
-        parts2 = shlex.split(commands[1])
-    except ValueError:
-        parts2 = commands[1].split()
-    
-    parts2, redir2 = parse_redirection(parts2)
-    if not parts2:
-        return
-    
-    cmd2, args2 = parts2[0], parts2[1:]
-    
-    # Execute pipeline
-    if cmd1 in BUILTINS:
-        # Builtin as first command - capture output to string
-        from io import StringIO
-        original_stdout = sys.stdout
-        captured_output = StringIO()
-        
+    # Parse all commands
+    parsed_commands = []
+    for cmd_str in commands:
         try:
-            redir1.stdout_file = None  # Override stdout redirection
-            sys.stdout = captured_output
-            execute_builtin(cmd1, args1, redir1)
-            sys.stdout = original_stdout
-            output = captured_output.getvalue()
-            
-            # Feed to second command
-            if cmd2 in BUILTINS:
-                # Both builtins - not common but handle it
-                from io import StringIO
-                redir2.stdin_pipe = StringIO(output)
-                execute_builtin(cmd2, args2, redir2)
-            else:
-                # Second is external
-                executable_path = find_executable_in_path(cmd2)
-                if executable_path:
-                    subprocess.run(
-                        [cmd2] + args2,
-                        executable=executable_path,
-                        input=output,
-                        text=True
-                    )
-                else:
-                    print(f"{cmd2}: command not found")
-        finally:
-            sys.stdout = original_stdout
-    else:
-        # External command as first
-        executable_path1 = find_executable_in_path(cmd1)
-        if not executable_path1:
-            print(f"{cmd1}: command not found")
-            return
+            parts = shlex.split(cmd_str)
+        except ValueError:
+            parts = cmd_str.split()
         
-        if cmd2 in BUILTINS:
-            # First external, second builtin
-            result = subprocess.run(
-                [cmd1] + args1,
-                executable=executable_path1,
-                capture_output=True,
-                text=True
-            )
-            from io import StringIO
-            redir2.stdin_pipe = StringIO(result.stdout)
-            execute_builtin(cmd2, args2, redir2)
+        parts, redir = parse_redirection(parts)
+        if not parts:
+            continue
+        
+        command, args = parts[0], parts[1:]
+        parsed_commands.append((command, args, redir))
+    
+    if not parsed_commands:
+        return
+    
+    # Execute pipeline chain
+    processes = []
+    prev_output = None  # Can be string or pipe
+    
+    for i, (cmd, args, redir) in enumerate(parsed_commands):
+        is_first = i == 0
+        is_last = i == len(parsed_commands) - 1
+        
+        if cmd in BUILTINS:
+            # Handle builtin in pipeline
+            if is_first and not is_last:
+                # First command - capture output
+                from io import StringIO
+                original_stdout = sys.stdout
+                captured = StringIO()
+                
+                try:
+                    sys.stdout = captured
+                    execute_builtin(cmd, args, redir)
+                    sys.stdout = original_stdout
+                    prev_output = captured.getvalue()
+                finally:
+                    sys.stdout = original_stdout
+            elif not is_first and not is_last:
+                # Middle builtin - read from prev, capture output
+                from io import StringIO
+                original_stdout = sys.stdout
+                original_stdin = sys.stdin
+                captured = StringIO()
+                
+                try:
+                    if isinstance(prev_output, str):
+                        sys.stdin = StringIO(prev_output)
+                    sys.stdout = captured
+                    execute_builtin(cmd, args, redir)
+                    prev_output = captured.getvalue()
+                finally:
+                    sys.stdout = original_stdout
+                    sys.stdin = original_stdin
+            else:
+                # Last builtin - just read from prev
+                from io import StringIO
+                original_stdin = sys.stdin
+                try:
+                    if isinstance(prev_output, str):
+                        sys.stdin = StringIO(prev_output)
+                    execute_builtin(cmd, args, redir)
+                finally:
+                    sys.stdin = original_stdin
         else:
-            # Both external - use pipe
-            executable_path2 = find_executable_in_path(cmd2)
-            if not executable_path2:
-                print(f"{cmd2}: command not found")
+            # External command
+            executable_path = find_executable_in_path(cmd)
+            if not executable_path:
+                print(f"{cmd}: command not found")
+                # Clean up any running processes
+                for proc in processes:
+                    proc.terminate()
                 return
             
-            # Create pipe
-            proc1 = subprocess.Popen(
-                [cmd1] + args1,
-                executable=executable_path1,
-                stdout=subprocess.PIPE
+            stdin_source = None
+            stdout_dest = None
+            
+            if not is_first:
+                # Not first - read from previous
+                if isinstance(prev_output, str):
+                    # Previous was a builtin, use PIPE to write string
+                    stdin_source = subprocess.PIPE
+                else:
+                    # Previous was external process
+                    stdin_source = prev_output
+            
+            if not is_last:
+                # Not last - pipe to next
+                stdout_dest = subprocess.PIPE
+            
+            proc = subprocess.Popen(
+                [cmd] + args,
+                executable=executable_path,
+                stdin=stdin_source,
+                stdout=stdout_dest,
+                stderr=None
             )
             
-            proc2 = subprocess.Popen(
-                [cmd2] + args2,
-                executable=executable_path2,
-                stdin=proc1.stdout
-            )
+            processes.append(proc)
             
-            if proc1.stdout:
-                proc1.stdout.close()
-            proc2.communicate()
+            # If previous output was a string (from builtin), write it
+            if isinstance(prev_output, str) and proc.stdin:
+                proc.stdin.write(prev_output.encode())
+                proc.stdin.close()
+            
+            # Close previous process stdout if it exists and it's a pipe
+            if prev_output and not isinstance(prev_output, str) and hasattr(prev_output, 'close'):
+                prev_output.close()
+            
+            prev_output = proc.stdout
+    
+    # Wait for all processes to complete
+    for proc in processes:
+        proc.wait()
 
 
 def process_command(usr_input):
