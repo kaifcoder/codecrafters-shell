@@ -164,26 +164,48 @@ def setup_readline():
     # Set custom display for multiple matches
     readline.set_completion_display_matches_hook(display_matches)
     
-    # Enable history
-    readline.set_history_length(1000)
+    # Enable history with limit
+    readline.set_history_length(500)  # Limit to 500 entries
     
     # Load history from file if it exists
     history_file = os.path.expanduser("~/.shell_history")
     if os.path.exists(history_file):
         try:
             readline.read_history_file(history_file)
-        except:
+        except Exception:
             pass
     
     return history_file
 
 
 def save_history(history_file):
-    """Save command history to file."""
+    """Save command history to file, limiting to last 500 entries."""
     try:
+        # Append history and limit file size
+        readline.append_history_file(readline.get_current_history_length(), history_file)
+        # Truncate to keep only last 500 entries
         readline.write_history_file(history_file)
-    except:
-        pass
+    except (AttributeError, OSError):
+        # Fallback if append_history_file not available
+        try:
+            readline.write_history_file(history_file)
+        except Exception:
+            pass
+
+
+def should_add_to_history(command):
+    """Determine if a command should be added to history."""
+    if not command or not command.strip():
+        return False
+    
+    # Don't add consecutive duplicates
+    history_length = readline.get_current_history_length()
+    if history_length > 0:
+        last_item = readline.get_history_item(history_length)
+        if last_item == command:
+            return False
+    
+    return True
 
 
 
@@ -511,7 +533,13 @@ def main():
 
                 usr_input = input().strip()
                 if usr_input:
-                    # Add to history (readline does this automatically with input())
+                    # Check if we should skip adding to history
+                    if not should_add_to_history(usr_input):
+                        # Remove it from history (input() adds it automatically)
+                        history_length = readline.get_current_history_length()
+                        if history_length > 0:
+                            readline.remove_history_item(history_length - 1)
+                    
                     process_command(usr_input)
                     
             except EOFError:
