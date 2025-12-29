@@ -129,12 +129,24 @@ def completer(text, state):
     return None
 
 
+def display_matches(substitution, matches, longest_match_length):
+    """Custom display function for completion matches."""
+    print()
+    # Remove trailing spaces from matches for display
+    display_matches = [match.rstrip() for match in matches]
+    print("  ".join(display_matches))
+    # Redisplay the prompt and current line
+    print(readline.get_line_buffer(), end='', flush=True)
+
+
 def setup_readline():
     """Configure readline for tab completion."""
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     # Disable default filename completion behavior
     readline.set_completer_delims(' \t\n;')
+    # Set custom display for multiple matches
+    readline.set_completion_display_matches_hook(display_matches)
 
 
 
