@@ -120,7 +120,7 @@ def completer(text, state):
         options = builtins + executables
         
         # Filter options that match the text
-        matches = [cmd for cmd in options if cmd.startswith(text)]
+        matches = [cmd + ' ' for cmd in options if cmd.startswith(text)]
         matches.sort()
         
         if state < len(matches):
