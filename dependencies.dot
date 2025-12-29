@@ -1,0 +1,68 @@
+digraph Dependencies {
+    rankdir=LR;
+    node [shape=box, style=filled];
+    
+    // Entry point
+    main [fillcolor=lightgreen, label="main.cpp"];
+    
+    // Core modules
+    shell [fillcolor=lightblue, label="shell.cpp"];
+    parser [fillcolor=lightblue, label="parser.cpp"];
+    executor [fillcolor=lightblue, label="executor.cpp"];
+    
+    // Feature modules
+    builtins [fillcolor=lightyellow, label="builtins.cpp"];
+    job_control [fillcolor=lightyellow, label="job_control.cpp"];
+    completion [fillcolor=lightyellow, label="completion.cpp"];
+    heredoc [fillcolor=lightyellow, label="heredoc.cpp"];
+    
+    // Utility module
+    utils [fillcolor=lightgray, label="utils.cpp"];
+    
+    // Dependencies from main.cpp
+    main -> shell [label="init, run"];
+    main -> builtins [label="init"];
+    
+    // Dependencies from shell.cpp
+    shell -> parser [label="parse"];
+    shell -> executor [label="execute"];
+    shell -> job_control [label="jobs"];
+    shell -> utils [label="trim"];
+    
+    // Dependencies from parser.cpp
+    parser -> executor [label="process_command"];
+    parser -> heredoc [label="read"];
+    parser -> utils [label="trim, split"];
+    
+    // Dependencies from executor.cpp
+    executor -> parser [label="AST, RedirConfig"];
+    executor -> builtins [label="is_builtin, exec"];
+    executor -> job_control [label="add_job"];
+    executor -> shell [label="shell_pgid"];
+    executor -> utils [label="find_executable"];
+    
+    // Dependencies from builtins.cpp
+    builtins -> utils [label="find_executable"];
+    builtins -> job_control [label="find_job"];
+    builtins -> shell [label="shell_pgid"];
+    
+    // Dependencies from completion.cpp
+    completion -> builtins [label="builtins map"];
+    completion -> utils [label="get_executables"];
+    
+    // Dependencies from heredoc.cpp
+    // (no dependencies on other modules)
+    
+    // Dependencies from job_control.cpp
+    // (no dependencies on other modules)
+    
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=dashed;
+        entry [fillcolor=lightgreen, label="Entry Point"];
+        core [fillcolor=lightblue, label="Core Module"];
+        feature [fillcolor=lightyellow, label="Feature Module"];
+        utility [fillcolor=lightgray, label="Utility"];
+    }
+}
