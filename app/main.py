@@ -78,7 +78,7 @@ BUILTINS = {
 }
 
 
-def run_external_program(command, args, stdout_file=None):
+def run_external_program(command, args, stdout_file=None, stderr_file=None):
     """Execute an external program found in PATH."""
     executable_path = find_executable_in_path(command)
     
@@ -88,55 +88,86 @@ def run_external_program(command, args, stdout_file=None):
     
     # Execute the program with the command name as argv[0] followed by arguments
     try:
-        if stdout_file:
-            with open(stdout_file, 'w') as f:
-                subprocess.run([command] + args, executable=executable_path, stdout=f)
-        else:
-            subprocess.run([command] + args, executable=executable_path)
+        stdout_handle = open(stdout_file, 'w') if stdout_file else None
+        stderr_handle = open(stderr_file, 'w') if stderr_file else None
+        
+        try:
+            subprocess.run(
+                [command] + args,
+                executable=executable_path,
+                stdout=stdout_handle,
+                stderr=stderr_handle
+            )
+        finally:
+            if stdout_handle:
+                stdout_handle.close()
+            if stderr_handle:
+                stderr_handle.close()
     except Exception as e:
         print(f"{command}: {e}")
 
 
+def extract_redirection_info(token, next_token):
+    """Extract redirection operator and filename from token(s).
+    
+    Returns: (operator, filename, tokens_consumed)
+    operator is '>', '1>', or '2>' if redirection found, else None
+    """
+    # Spaced operators: > file, 1> file, 2> file
+    if token in ('>', '1>', '2>'):
+        return token, next_token, 2 if next_token else 1
+    
+    # Inline operators: >file, 1>file, 2>file
+    for op in ('2>', '1>', '>'):
+        if token.startswith(op):
+            return op, token[len(op):], 1
+    
+    return None, None, 0
+
+
 def parse_redirection(parts):
-    """Parse command parts for stdout redirection (> or 1>)."""
+    """Parse command parts for stdout (> or 1>) and stderr (2>) redirection."""
     stdout_file = None
+    stderr_file = None
     filtered_parts = []
     i = 0
-    
+
     while i < len(parts):
-        if parts[i] in ('>', '1>'):
-            # Next part is the filename
-            if i + 1 < len(parts):
-                stdout_file = parts[i + 1]
-                i += 2
-            else:
-                i += 1
-        elif parts[i].startswith('>'):
-            # Handle cases like >file or 1>file (no space)
-            if parts[i].startswith('1>'):
-                stdout_file = parts[i][2:]
-            else:
-                stdout_file = parts[i][1:]
-            i += 1
+        next_token = parts[i + 1] if i + 1 < len(parts) else None
+        operator, filename, consumed = extract_redirection_info(parts[i], next_token)
+        
+        if operator:
+            if operator in ('>', '1>') and filename:
+                stdout_file = filename
+            elif operator == '2>' and filename:
+                stderr_file = filename
+            i += consumed
         else:
             filtered_parts.append(parts[i])
             i += 1
+
+    return filtered_parts, stdout_file, stderr_file
+
+
+def execute_builtin(command, args, stdout_file, stderr_file):
+    """Execute a builtin command with optional stdout/stderr redirection."""
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
     
-    return filtered_parts, stdout_file
-
-
-def execute_builtin(command, args, stdout_file):
-    """Execute a builtin command with optional stdout redirection."""
-    if stdout_file:
-        original_stdout = sys.stdout
-        try:
-            with open(stdout_file, 'w') as f:
-                sys.stdout = f
-                BUILTINS[command](*args)
-        finally:
-            sys.stdout = original_stdout
-    else:
+    try:
+        if stdout_file:
+            sys.stdout = open(stdout_file, 'w')
+        if stderr_file:
+            sys.stderr = open(stderr_file, 'w')
+        
         BUILTINS[command](*args)
+    finally:
+        if stdout_file and sys.stdout != original_stdout:
+            sys.stdout.close()
+            sys.stdout = original_stdout
+        if stderr_file and sys.stderr != original_stderr:
+            sys.stderr.close()
+            sys.stderr = original_stderr
 
 
 def process_command(usr_input):
@@ -149,7 +180,7 @@ def process_command(usr_input):
         parts = usr_input.split()
     
     # Parse for redirections
-    parts, stdout_file = parse_redirection(parts)
+    parts, stdout_file, stderr_file = parse_redirection(parts)
     
     if not parts:
         return
@@ -158,9 +189,9 @@ def process_command(usr_input):
     args = parts[1:]
     
     if command in BUILTINS:
-        execute_builtin(command, args, stdout_file)
+        execute_builtin(command, args, stdout_file, stderr_file)
     else:
-        run_external_program(command, args, stdout_file)
+        run_external_program(command, args, stdout_file, stderr_file)
 
 
 def main():
