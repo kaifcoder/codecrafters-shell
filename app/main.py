@@ -4,7 +4,7 @@ def echo(message: str) -> None:
     sys.stdout.write(message + "\n")
 
 def type_check(command: str):
-    builtin_commands = ["echo", "exit"]
+    builtin_commands = ["echo", "exit", "type"]
     if command in builtin_commands:
         return f"{command} is a shell builtin"
     else:
