@@ -79,12 +79,22 @@ def cd_command(dir=None):
         print(f"cd: {dir}: No such file or directory")
 
 
+def history_command(*_):
+    """Display command history."""
+    history_length = readline.get_current_history_length()
+    for i in range(1, history_length + 1):
+        item = readline.get_history_item(i)
+        if item:
+            print(f"    {i}  {item}")
+
+
 BUILTINS = {
     "exit": exit_command,
     "echo": echo_command,
     "type": type_command,
     "pwd": pwd_command,
     "cd": cd_command,
+    "history": history_command,
 }
 
 
@@ -141,7 +151,7 @@ def display_matches(substitution, matches, longest_match_length):
 
 
 def setup_readline():
-    """Configure readline for tab completion."""
+    """Configure readline for tab completion and history."""
     readline.set_completer(completer)
     # Bind tab to complete - try multiple methods for compatibility
     if readline.__doc__ and 'libedit' in readline.__doc__:
@@ -153,6 +163,27 @@ def setup_readline():
     readline.set_completer_delims(' \t\n;')
     # Set custom display for multiple matches
     readline.set_completion_display_matches_hook(display_matches)
+    
+    # Enable history
+    readline.set_history_length(1000)
+    
+    # Load history from file if it exists
+    history_file = os.path.expanduser("~/.shell_history")
+    if os.path.exists(history_file):
+        try:
+            readline.read_history_file(history_file)
+        except:
+            pass
+    
+    return history_file
+
+
+def save_history(history_file):
+    """Save command history to file."""
+    try:
+        readline.write_history_file(history_file)
+    except:
+        pass
 
 
 
@@ -470,22 +501,27 @@ def process_command(usr_input):
 
 def main():
     """Main shell loop."""
-    setup_readline()
+    history_file = setup_readline()
     
-    while True:
-        try:
-            sys.stdout.write("$ ")
-            sys.stdout.flush()
+    try:
+        while True:
+            try:
+                sys.stdout.write("$ ")
+                sys.stdout.flush()
 
-            usr_input = input().strip()
-            if usr_input:
-                process_command(usr_input)
-                
-        except EOFError:
-            break
-        except KeyboardInterrupt:
-            print()
-            continue
+                usr_input = input().strip()
+                if usr_input:
+                    # Add to history (readline does this automatically with input())
+                    process_command(usr_input)
+                    
+            except EOFError:
+                break
+            except KeyboardInterrupt:
+                print()
+                continue
+    finally:
+        # Save history on exit
+        save_history(history_file)
 
 
 if __name__ == "__main__":
