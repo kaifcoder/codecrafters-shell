@@ -683,6 +683,36 @@ void save_history(const std::string& history_file) {
     write_history(history_file.c_str());
 }
 
+std::string get_prompt() {
+    char cwd[4096];
+    if (!getcwd(cwd, sizeof(cwd))) {
+        return "$ ";
+    }
+    
+    std::string path = cwd;
+    
+    // Replace home directory with ~
+    const char* home = std::getenv("HOME");
+    if (home && path.find(home) == 0) {
+        path = "~" + path.substr(strlen(home));
+    }
+    
+    // Get username
+    const char* user = std::getenv("USER");
+    if (!user) user = std::getenv("LOGNAME");
+    
+    // ANSI color codes
+    const char* GREEN = "\033[32m";
+    const char* BLUE = "\033[34m";
+    const char* RESET = "\033[0m";
+    
+    if (user) {
+        return std::string(GREEN) + user + RESET + ":" + BLUE + path + RESET + "$ ";
+    } else {
+        return BLUE + path + RESET + "$ ";
+    }
+}
+
 // Redirection parsing with heredoc support
 std::pair<std::vector<std::string>, RedirectionConfig> parse_redirection(const std::vector<std::string>& parts) {
     std::vector<std::string> filtered;
@@ -1358,7 +1388,8 @@ int main() {
     setup_readline(history_file);
     
     while (true) {
-        char* line = readline("$ ");
+        std::string prompt = get_prompt();
+        char* line = readline(prompt.c_str());
         
         if (!line) {
             // EOF (Ctrl+D)
