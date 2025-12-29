@@ -53,11 +53,25 @@ def pwd_command(*_):
     """Print the current working directory."""
     print(os.getcwd())
 
+def cd_command(dir=None):
+    """Change the current working directory."""
+    target_dir = dir or os.path.expanduser("~")
+    if dir == "-":
+        target_dir = os.environ.get("OLDPWD", os.getcwd())
+    
+    try:
+        old_pwd = os.getcwd()
+        os.chdir(target_dir)
+        os.environ["OLDPWD"] = old_pwd
+    except Exception as e:
+        print(f"cd: {e}")
+
 BUILTINS = {
     "exit": exit_command,
     "echo": echo_command,
     "type": type_command,
     "pwd": pwd_command,
+    "cd": cd_command,
 }
 
 
