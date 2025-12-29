@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+import shlex
 
 
 def find_executable_in_path(cmd):
@@ -102,8 +103,14 @@ def main():
             usr_input = input().strip()
             if not usr_input:
                 continue
+            
+            # Parse input with quote handling
+            try:
+                parts = shlex.split(usr_input)
+            except ValueError:
+                # Handle unclosed quotes
+                parts = usr_input.split()
                 
-            parts = usr_input.split()
             command = parts[0]
             args = parts[1:]
             
