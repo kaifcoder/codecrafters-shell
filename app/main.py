@@ -49,11 +49,15 @@ def type_command(cmd, *_):
     else:
         print(f"{cmd}: not found")
 
+def pwd_command(*_):
+    """Print the current working directory."""
+    print(os.getcwd())
 
 BUILTINS = {
     "exit": exit_command,
     "echo": echo_command,
     "type": type_command,
+    "pwd": pwd_command,
 }
 
 
