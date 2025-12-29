@@ -80,7 +80,23 @@ def cd_command(dir=None):
 
 
 def history_command(*args):
-    """Display command history."""
+    """Display command history or read history from file."""
+    # Check for -r flag to read history from file
+    if args and len(args) >= 2 and args[0] == '-r':
+        history_file_path = args[1]
+        try:
+            with open(history_file_path, 'r') as f:
+                for line in f:
+                    line = line.rstrip('\n')
+                    # Skip empty lines
+                    if line.strip():
+                        readline.add_history(line)
+        except FileNotFoundError:
+            print(f"history: {history_file_path}: No such file or directory")
+        except Exception as e:
+            print(f"history: {history_file_path}: {e}")
+        return
+    
     history_length = readline.get_current_history_length()
     
     # Check if a limit argument was provided
