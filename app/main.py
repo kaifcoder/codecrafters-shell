@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import shlex
+import readline
 from dataclasses import dataclass
 from typing import Optional
 
@@ -84,6 +85,57 @@ BUILTINS = {
     "pwd": pwd_command,
     "cd": cd_command,
 }
+
+
+def get_all_executables():
+    """Get all executables from PATH directories."""
+    executables = set()
+    path_env = os.environ.get("PATH", "")
+    
+    for directory in path_env.split(os.pathsep):
+        if not os.path.isdir(directory):
+            continue
+        
+        try:
+            for filename in os.listdir(directory):
+                file_path = os.path.join(directory, filename)
+                if os.path.isfile(file_path) and os.access(file_path, os.X_OK):
+                    executables.add(filename)
+        except PermissionError:
+            continue
+    
+    return executables
+
+
+def completer(text, state):
+    """Tab completion function for readline."""
+    line = readline.get_line_buffer()
+    tokens = line.lstrip().split()
+    
+    # If we're completing the first word (command name)
+    if not tokens or (len(tokens) == 1 and not line.endswith(' ')):
+        # Get all available commands (builtins + executables)
+        builtins = list(BUILTINS.keys())
+        executables = list(get_all_executables())
+        options = builtins + executables
+        
+        # Filter options that match the text
+        matches = [cmd for cmd in options if cmd.startswith(text)]
+        matches.sort()
+        
+        if state < len(matches):
+            return matches[state]
+    
+    return None
+
+
+def setup_readline():
+    """Configure readline for tab completion."""
+    readline.set_completer(completer)
+    readline.parse_and_bind("tab: complete")
+    # Disable default filename completion behavior
+    readline.set_completer_delims(' \t\n;')
+
 
 
 def open_redirect_file(filename, append_mode):
@@ -224,6 +276,8 @@ def process_command(usr_input):
 
 def main():
     """Main shell loop."""
+    setup_readline()
+    
     while True:
         try:
             sys.stdout.write("$ ")
@@ -238,11 +292,6 @@ def main():
         except KeyboardInterrupt:
             print()
             continue
-
-
-if __name__ == "__main__":
-    main()
-
 
 
 if __name__ == "__main__":
