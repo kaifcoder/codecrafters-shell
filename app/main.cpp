@@ -468,6 +468,26 @@ void jobs_command(const std::vector<std::string>&) {
     }
 }
 
+void help_command(const std::vector<std::string>&) {
+    const char* CYAN = "\033[36m";
+    const char* YELLOW = "\033[33m";
+    const char* RESET = "\033[0m";
+    
+    std::cout << YELLOW << "\nAvailable Builtin Commands:\n" << RESET;
+    std::cout << std::string(50, '-') << "\n";
+    std::cout << CYAN << "exit [code]" << RESET << "       - Exit the shell\n";
+    std::cout << CYAN << "echo <args>" << RESET << "       - Print arguments to stdout\n";
+    std::cout << CYAN << "type <cmd>" << RESET << "        - Show command type\n";
+    std::cout << CYAN << "pwd" << RESET << "               - Print working directory\n";
+    std::cout << CYAN << "cd [dir]" << RESET << "          - Change directory\n";
+    std::cout << CYAN << "history [n]" << RESET << "       - View command history\n";
+    std::cout << CYAN << "jobs" << RESET << "              - List background jobs\n";
+    std::cout << CYAN << "fg [job]" << RESET << "          - Bring job to foreground\n";
+    std::cout << CYAN << "bg [job]" << RESET << "          - Resume job in background\n";
+    std::cout << CYAN << "help" << RESET << "              - Show this help message\n";
+    std::cout << std::string(50, '-') << "\n\n";
+}
+
 void history_command(const std::vector<std::string>& args) {
     // Check for -r flag (read from file)
     if (args.size() >= 2 && args[0] == "-r") {
@@ -565,7 +585,8 @@ std::map<std::string, void(*)(const std::vector<std::string>&)> builtins = {
     {"history", history_command},
     {"fg", fg_command},
     {"bg", bg_command},
-    {"jobs", jobs_command}
+    {"jobs", jobs_command},
+    {"help", help_command}
 };
 
 void type_command(const std::vector<std::string>& args) {
@@ -711,6 +732,55 @@ std::string get_prompt() {
     } else {
         return BLUE + path + RESET + "$ ";
     }
+}
+
+void print_welcome_message() {
+    // ANSI color codes
+    const char* CYAN = "\033[36m";
+    const char* GREEN = "\033[32m";
+    const char* YELLOW = "\033[33m";
+    const char* RESET = "\033[0m";
+    const char* BOLD = "\033[1m";
+    
+    std::cout << CYAN << BOLD << "\n╔════════════════════════════════════════════════╗\n";
+    std::cout << "║                                                ║\n";
+    std::cout << "║         " << RESET << CYAN << "Welcome to Custom C++ Shell" << BOLD << "         ║\n";
+    std::cout << "║                                                ║\n";
+    std::cout << "╚════════════════════════════════════════════════╝" << RESET << "\n\n";
+    
+    // User info
+    const char* user = std::getenv("USER");
+    if (user) {
+        std::cout << GREEN << "👤 User: " << RESET << user << std::endl;
+    }
+    
+    // System info
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+        std::cout << GREEN << "💻 Host: " << RESET << hostname << std::endl;
+    }
+    
+    char cwd[4096];
+    if (getcwd(cwd, sizeof(cwd))) {
+        std::cout << GREEN << "📁 Working Directory: " << RESET << cwd << std::endl;
+    }
+    
+    std::cout << "\n" << YELLOW << "Features:" << RESET << "\n";
+    std::cout << "  • Job Control (bg, fg, jobs)\n";
+    std::cout << "  • Command Substitution $(...)  \n";
+    std::cout << "  • Pipelines & Redirects\n";
+    std::cout << "  • Tab Completion\n";
+    std::cout << "  • Command History (↑/↓)\n";
+    std::cout << "  • Signal Handling (Ctrl+C, Ctrl+Z)\n";
+    
+    std::cout << "\n" << YELLOW << "Quick Tips:" << RESET << "\n";
+    std::cout << "  • Use " << CYAN << "Tab" << RESET << " for command completion\n";
+    std::cout << "  • Use " << CYAN << "Ctrl+C" << RESET << " to stop current command\n";
+    std::cout << "  • Use " << CYAN << "Ctrl+Z" << RESET << " to suspend current job\n";
+    std::cout << "  • Use " << CYAN << "Ctrl+D" << RESET << " or type " << CYAN << "exit" << RESET << " to quit\n";
+    std::cout << "  • Type " << CYAN << "help" << RESET << " for available builtins\n";
+    
+    std::cout << "\n" << std::string(50, '-') << "\n\n";
 }
 
 // Redirection parsing with heredoc support
@@ -1386,6 +1456,9 @@ int main() {
     
     std::string history_file;
     setup_readline(history_file);
+    
+    // Display welcome message
+    print_welcome_message();
     
     while (true) {
         std::string prompt = get_prompt();
