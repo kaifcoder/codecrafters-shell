@@ -56,6 +56,8 @@ def pwd_command(*_):
 def cd_command(dir=None):
     """Change the current working directory."""
     target_dir = dir or os.path.expanduser("~")
+    if dir == "~":
+        target_dir = os.path.expanduser("~")
     if dir == "-":
         target_dir = os.environ.get("OLDPWD", os.getcwd())
     
