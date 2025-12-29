@@ -6,6 +6,8 @@ This is a Python implementation of a POSIX-compliant shell for the ["Build Your 
 
 A feature-rich, interactive shell that supports command execution, builtin commands, I/O redirection, pipelines, command history, and tab completion.
 
+> 🚀 **Also Available**: [C++ Implementation](README_CPP.md) with advanced features including job control (&, fg, bg), signal handling (SIGINT, SIGTSTP), command substitution ($(...)), heredocs (<<), and AST-based parsing!
+
 ## Features
 
 ### 🚀 Core Functionality
