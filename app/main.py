@@ -1,15 +1,14 @@
 import sys
 import os
+import subprocess
 
-def type_command(cmd):
-    """Handle the type builtin command."""
-    # Check if it's a builtin
-    if cmd in RESERVED:
-        print(f"{cmd} is a shell builtin")
-        return
-    
-    # Search through PATH directories
+
+def find_executable_in_path(cmd):
+    """Search for an executable in PATH directories."""
     path_env = os.environ.get("PATH", "")
+    if not path_env:
+        return None
+    
     path_dirs = path_env.split(os.pathsep)
     
     for directory in path_dirs:
@@ -21,30 +20,83 @@ def type_command(cmd):
         
         # Check if file exists and has execute permissions
         if os.path.isfile(file_path) and os.access(file_path, os.X_OK):
-            print(f"{cmd} is {file_path}")
-            return
+            return file_path
     
-    # Not found
-    print(f"{cmd}: not found")
+    return None
 
-RESERVED = {
-    "exit": lambda code=0, *_: sys.exit(int(code)),
-    "echo": lambda *args: print(" ".join(args)),
-    "type": lambda cmd, *_: type_command(cmd),
+
+def exit_command(code=0, *_):
+    """Exit the shell with the given code."""
+    sys.exit(int(code))
+
+
+def echo_command(*args):
+    """Print arguments to stdout."""
+    print(" ".join(args))
+
+
+def type_command(cmd, *_):
+    """Check if a command is a builtin or find it in PATH."""
+    # Check if it's a builtin
+    if cmd in BUILTINS:
+        print(f"{cmd} is a shell builtin")
+        return
+    
+    # Search for executable in PATH
+    executable_path = find_executable_in_path(cmd)
+    if executable_path:
+        print(f"{cmd} is {executable_path}")
+    else:
+        print(f"{cmd}: not found")
+
+
+BUILTINS = {
+    "exit": exit_command,
+    "echo": echo_command,
+    "type": type_command,
 }
 
-def main():
-    while True:
-        sys.stdout.write("$ ")
-        sys.stdout.flush()
 
-        usr_input = input().split()
-        command = usr_input[0]
-        args = usr_input[1:]
-        if command in RESERVED:
-            RESERVED[command](*args)
-        else:
-            print(f"{command}: command not found")
+def run_external_program(command, args):
+    """Execute an external program found in PATH."""
+    executable_path = find_executable_in_path(command)
+    
+    if not executable_path:
+        print(f"{command}: command not found")
+        return
+    
+    # Execute the program with the command name as argv[0] followed by arguments
+    try:
+        subprocess.run([executable_path] + args)
+    except Exception as e:
+        print(f"{command}: {e}")
+
+
+def main():
+    """Main shell loop."""
+    while True:
+        try:
+            sys.stdout.write("$ ")
+            sys.stdout.flush()
+
+            usr_input = input().strip()
+            if not usr_input:
+                continue
+                
+            parts = usr_input.split()
+            command = parts[0]
+            args = parts[1:]
+            
+            if command in BUILTINS:
+                BUILTINS[command](*args)
+            else:
+                run_external_program(command, args)
+                
+        except EOFError:
+            break
+        except KeyboardInterrupt:
+            print()
+            continue
 
 
 if __name__ == "__main__":
