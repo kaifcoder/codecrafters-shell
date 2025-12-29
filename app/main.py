@@ -2,6 +2,17 @@ import sys
 import os
 import subprocess
 import shlex
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class RedirectionConfig:
+    """Configuration for I/O redirection."""
+    stdout_file: Optional[str] = None
+    stderr_file: Optional[str] = None
+    stdout_append: bool = False
+    stderr_append: bool = False
 
 
 def find_executable_in_path(cmd):
@@ -10,16 +21,11 @@ def find_executable_in_path(cmd):
     if not path_env:
         return None
     
-    path_dirs = path_env.split(os.pathsep)
-    
-    for directory in path_dirs:
-        # Skip if directory doesn't exist
+    for directory in path_env.split(os.pathsep):
         if not os.path.isdir(directory):
             continue
             
         file_path = os.path.join(directory, cmd)
-        
-        # Check if file exists and has execute permissions
         if os.path.isfile(file_path) and os.access(file_path, os.X_OK):
             return file_path
     
@@ -38,28 +44,29 @@ def echo_command(*args):
 
 def type_command(cmd, *_):
     """Check if a command is a builtin or find it in PATH."""
-    # Check if it's a builtin
     if cmd in BUILTINS:
         print(f"{cmd} is a shell builtin")
         return
     
-    # Search for executable in PATH
     executable_path = find_executable_in_path(cmd)
     if executable_path:
         print(f"{cmd} is {executable_path}")
     else:
         print(f"{cmd}: not found")
 
+
 def pwd_command(*_):
     """Print the current working directory."""
     print(os.getcwd())
 
+
 def cd_command(dir=None):
     """Change the current working directory."""
     target_dir = dir or os.path.expanduser("~")
+    
     if dir == "~":
         target_dir = os.path.expanduser("~")
-    if dir == "-":
+    elif dir == "-":
         target_dir = os.environ.get("OLDPWD", os.getcwd())
     
     try:
@@ -68,6 +75,7 @@ def cd_command(dir=None):
         os.environ["OLDPWD"] = old_pwd
     except Exception:
         print(f"cd: {dir}: No such file or directory")
+
 
 BUILTINS = {
     "exit": exit_command,
@@ -78,7 +86,13 @@ BUILTINS = {
 }
 
 
-def run_external_program(command, args, stdout_file=None, stderr_file=None):
+def open_redirect_file(filename, append_mode):
+    """Open a file for redirection with appropriate mode."""
+    mode = 'a' if append_mode else 'w'
+    return open(filename, mode) if filename else None
+
+
+def run_external_program(command, args, redir: RedirectionConfig):
     """Execute an external program found in PATH."""
     executable_path = find_executable_in_path(command)
     
@@ -86,10 +100,9 @@ def run_external_program(command, args, stdout_file=None, stderr_file=None):
         print(f"{command}: command not found")
         return
     
-    # Execute the program with the command name as argv[0] followed by arguments
     try:
-        stdout_handle = open(stdout_file, 'w') if stdout_file else None
-        stderr_handle = open(stderr_file, 'w') if stderr_file else None
+        stdout_handle = open_redirect_file(redir.stdout_file, redir.stdout_append)
+        stderr_handle = open_redirect_file(redir.stderr_file, redir.stderr_append)
         
         try:
             subprocess.run(
@@ -111,24 +124,42 @@ def extract_redirection_info(token, next_token):
     """Extract redirection operator and filename from token(s).
     
     Returns: (operator, filename, tokens_consumed)
-    operator is '>', '1>', or '2>' if redirection found, else None
     """
-    # Spaced operators: > file, 1> file, 2> file
-    if token in ('>', '1>', '2>'):
+    SPACED_OPS = ('>', '>>', '1>', '1>>', '2>', '2>>')
+    INLINE_OPS = ('2>>', '1>>', '>>', '2>', '1>', '>')
+    
+    if token in SPACED_OPS:
         return token, next_token, 2 if next_token else 1
     
-    # Inline operators: >file, 1>file, 2>file
-    for op in ('2>', '1>', '>'):
+    for op in INLINE_OPS:
         if token.startswith(op):
             return op, token[len(op):], 1
     
     return None, None, 0
 
 
+def apply_redirection(operator, filename, redir: RedirectionConfig):
+    """Apply redirection configuration based on operator and filename."""
+    if not filename:
+        return
+    
+    if operator in ('>', '1>'):
+        redir.stdout_file = filename
+        redir.stdout_append = False
+    elif operator in ('>>', '1>>'):
+        redir.stdout_file = filename
+        redir.stdout_append = True
+    elif operator == '2>':
+        redir.stderr_file = filename
+        redir.stderr_append = False
+    elif operator == '2>>':
+        redir.stderr_file = filename
+        redir.stderr_append = True
+
+
 def parse_redirection(parts):
-    """Parse command parts for stdout (> or 1>) and stderr (2>) redirection."""
-    stdout_file = None
-    stderr_file = None
+    """Parse command parts for I/O redirection."""
+    redir = RedirectionConfig()
     filtered_parts = []
     i = 0
 
@@ -137,61 +168,58 @@ def parse_redirection(parts):
         operator, filename, consumed = extract_redirection_info(parts[i], next_token)
         
         if operator:
-            if operator in ('>', '1>') and filename:
-                stdout_file = filename
-            elif operator == '2>' and filename:
-                stderr_file = filename
+            apply_redirection(operator, filename, redir)
             i += consumed
         else:
             filtered_parts.append(parts[i])
             i += 1
 
-    return filtered_parts, stdout_file, stderr_file
+    return filtered_parts, redir
 
 
-def execute_builtin(command, args, stdout_file, stderr_file):
-    """Execute a builtin command with optional stdout/stderr redirection."""
+def execute_builtin(command, args, redir: RedirectionConfig):
+    """Execute a builtin command with optional I/O redirection."""
     original_stdout = sys.stdout
     original_stderr = sys.stderr
+    stdout_file_handle = None
+    stderr_file_handle = None
     
     try:
-        if stdout_file:
-            sys.stdout = open(stdout_file, 'w')
-        if stderr_file:
-            sys.stderr = open(stderr_file, 'w')
+        if redir.stdout_file:
+            stdout_file_handle = open_redirect_file(redir.stdout_file, redir.stdout_append)
+            sys.stdout = stdout_file_handle
+        if redir.stderr_file:
+            stderr_file_handle = open_redirect_file(redir.stderr_file, redir.stderr_append)
+            sys.stderr = stderr_file_handle
         
         BUILTINS[command](*args)
     finally:
-        if stdout_file and sys.stdout != original_stdout:
-            sys.stdout.close()
-            sys.stdout = original_stdout
-        if stderr_file and sys.stderr != original_stderr:
-            sys.stderr.close()
-            sys.stderr = original_stderr
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+        if stdout_file_handle:
+            stdout_file_handle.close()
+        if stderr_file_handle:
+            stderr_file_handle.close()
 
 
 def process_command(usr_input):
     """Parse and execute a single command."""
-    # Parse input with quote handling
     try:
         parts = shlex.split(usr_input)
     except ValueError:
-        # Handle unclosed quotes
         parts = usr_input.split()
     
-    # Parse for redirections
-    parts, stdout_file, stderr_file = parse_redirection(parts)
+    parts, redir = parse_redirection(parts)
     
     if not parts:
         return
         
-    command = parts[0]
-    args = parts[1:]
+    command, args = parts[0], parts[1:]
     
     if command in BUILTINS:
-        execute_builtin(command, args, stdout_file, stderr_file)
+        execute_builtin(command, args, redir)
     else:
-        run_external_program(command, args, stdout_file, stderr_file)
+        run_external_program(command, args, redir)
 
 
 def main():
@@ -202,16 +230,19 @@ def main():
             sys.stdout.flush()
 
             usr_input = input().strip()
-            if not usr_input:
-                continue
-            
-            process_command(usr_input)
+            if usr_input:
+                process_command(usr_input)
                 
         except EOFError:
             break
         except KeyboardInterrupt:
             print()
             continue
+
+
+if __name__ == "__main__":
+    main()
+
 
 
 if __name__ == "__main__":
