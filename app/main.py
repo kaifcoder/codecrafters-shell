@@ -169,12 +169,18 @@ def display_matches(substitution, matches, longest_match_length):
 def setup_readline():
     """Configure readline for tab completion and history."""
     readline.set_completer(completer)
+    
     # Bind tab to complete - try multiple methods for compatibility
     if readline.__doc__ and 'libedit' in readline.__doc__:
         # macOS uses libedit instead of GNU readline
         readline.parse_and_bind("bind ^I rl_complete")
+        # Additional libedit-specific settings
+        readline.parse_and_bind("bind -v")  # Vi mode off (use emacs mode)
     else:
         readline.parse_and_bind("tab: complete")
+        # Set to emacs mode for consistent behavior
+        readline.parse_and_bind("set editing-mode emacs")
+    
     # Disable default filename completion behavior
     readline.set_completer_delims(' \t\n;')
     # Set custom display for multiple matches
@@ -537,10 +543,8 @@ def main():
     try:
         while True:
             try:
-                sys.stdout.write("$ ")
-                sys.stdout.flush()
-
-                usr_input = input().strip()
+                # Use input() with prompt directly for better readline integration
+                usr_input = input("$ ").strip()
                 if usr_input:
                     # Check if we should skip adding to history
                     if not should_add_to_history(usr_input):
