@@ -136,7 +136,7 @@ def display_matches(substitution, matches, longest_match_length):
     display_matches = [match.rstrip() for match in matches]
     print("  ".join(display_matches))
     # Redisplay the prompt and current line
-    print(readline.get_line_buffer(), end='', flush=True)
+    print("$ " + readline.get_line_buffer(), end='', flush=True)
 
 
 def setup_readline():
