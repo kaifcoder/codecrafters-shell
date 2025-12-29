@@ -214,13 +214,6 @@ def should_add_to_history(command):
     if not command or not command.strip():
         return False
     
-    # Don't add consecutive duplicates
-    history_length = readline.get_current_history_length()
-    if history_length > 0:
-        last_item = readline.get_history_item(history_length)
-        if last_item == command:
-            return False
-    
     return True
 
 
