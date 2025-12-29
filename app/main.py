@@ -79,10 +79,26 @@ def cd_command(dir=None):
         print(f"cd: {dir}: No such file or directory")
 
 
-def history_command(*_):
+def history_command(*args):
     """Display command history."""
     history_length = readline.get_current_history_length()
-    for i in range(1, history_length + 1):
+    
+    # Check if a limit argument was provided
+    limit = None
+    if args and len(args) > 0:
+        try:
+            limit = int(args[0])
+        except ValueError:
+            print(f"history: {args[0]}: numeric argument required")
+            return
+    
+    # Determine the range to display
+    if limit is not None:
+        start = max(1, history_length - limit + 1)
+    else:
+        start = 1
+    
+    for i in range(start, history_length + 1):
         item = readline.get_history_item(i)
         if item:
             print(f"    {i}  {item}")
