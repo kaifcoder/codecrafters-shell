@@ -63,8 +63,8 @@ def cd_command(dir=None):
         old_pwd = os.getcwd()
         os.chdir(target_dir)
         os.environ["OLDPWD"] = old_pwd
-    except Exception as e:
-        print(f"cd: {e}")
+    except Exception:
+        print(f"cd: {dir}: No such file or directory")
 
 BUILTINS = {
     "exit": exit_command,
