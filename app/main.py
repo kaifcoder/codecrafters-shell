@@ -1,29 +1,26 @@
 import sys
 
-def echo(message: str) -> None:
-    sys.stdout.write(message + "\n")
-
-def type_check(command: str):
-    builtin_commands = ["echo", "exit", "type"]
-    if command in builtin_commands:
-        return f"{command} is a shell builtin"
-    else:
-        return f"{command}: not found"
+RESERVED = {
+    "exit": lambda code=0, *_: sys.exit(int(code)),
+    "echo": lambda *args: print(" ".join(args)),
+    "type": lambda x: print(
+        f"{x} is a shell builtin" if x in RESERVED else f"{x}: not found"
+    ),
+}
 
 def main():
-    sys.stdout.write("$ ")
-    input_string = input()
-    exit(0) if input_string == "exit" else None
-    if input_string.startswith("echo "):
-        echo(input_string[5:])
-    elif input_string.startswith("type "):
-        command = input_string[5:]
-        result = type_check(command)
-        sys.stdout.write(result + "\n")
-    else:
-        sys.stdout.write(f"{input_string}: command not found\n")
+    while True:
+        sys.stdout.write("$ ")
+        sys.stdout.flush()
+
+        usr_input = input().split()
+        command = usr_input[0]
+        args = usr_input[1:]
+        if command in RESERVED:
+            RESERVED[command](*args)
+        else:
+            print(f"{command}: command not found")
 
 
 if __name__ == "__main__":
-    while True:
-        main()
+    main()
