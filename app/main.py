@@ -245,8 +245,13 @@ def setup_readline():
     # Enable history with limit
     readline.set_history_length(500)  # Limit to 500 entries
     
+    # Get history file path from HISTFILE environment variable
+    history_file = os.environ.get("HISTFILE")
+    if not history_file:
+        # Default to ~/.shell_history if HISTFILE is not set
+        history_file = os.path.expanduser("~/.shell_history")
+    
     # Load history from file if it exists
-    history_file = os.path.expanduser("~/.shell_history")
     if os.path.exists(history_file):
         try:
             readline.read_history_file(history_file)
