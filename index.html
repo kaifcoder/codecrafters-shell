@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCrafters Shell - POSIX-Compliant Shell Implementation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 60px 20px;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 3.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .tagline {
+            font-size: 1.5em;
+            margin-bottom: 30px;
+            opacity: 0.95;
+        }
+        
+        .badges {
+            margin: 20px 0;
+        }
+        
+        .cta-buttons {
+            margin-top: 30px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h2 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        h3 {
+            color: #764ba2;
+            font-size: 1.8em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card h3 {
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+        
+        .feature-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .feature-card li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .feature-card li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .demo-section {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        
+        .demo-section code {
+            color: #ce9178;
+        }
+        
+        .command {
+            color: #4ec9b0;
+        }
+        
+        .output {
+            color: #dcdcaa;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+        }
+        
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .checklist {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .checklist-item {
+            padding: 15px;
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+        
+        .checklist-item:before {
+            content: "✅ ";
+            font-size: 1.2em;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+            margin-top: 40px;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5em;
+            }
+            
+            .tagline {
+                font-size: 1.2em;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐚 CodeCrafters Shell</h1>
+            <p class="tagline">A feature-rich, POSIX-compliant shell built with Python</p>
+            <div class="badges">
+                <a href="https://app.codecrafters.io/users/codecrafters-bot?r=2qF">
+                    <img src="https://backend.codecrafters.io/progress/shell/5667e953-cbfc-47b7-aba9-7c52fa68f5c8" alt="CodeCrafters Progress">
+                </a>
+            </div>
+            <div class="cta-buttons">
+                <a href="https://github.com/kaifcoder/codecrafters-shell" class="btn">View on GitHub</a>
+                <a href="https://app.codecrafters.io/courses/shell/overview" class="btn btn-secondary">Try Challenge</a>
+            </div>
+        </header>
+
+        <div class="content">
+            <h2>✨ Features</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <h3>Core Functionality</h3>
+                    <ul>
+                        <li>Interactive REPL interface</li>
+                        <li>Command execution from PATH</li>
+                        <li>Builtin commands support</li>
+                        <li>Quote handling (single & double)</li>
+                        <li>Graceful error handling</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📂</div>
+                    <h3>I/O Redirection</h3>
+                    <ul>
+                        <li>Stdout redirection (>, >>)</li>
+                        <li>Stderr redirection (2>, 2>>)</li>
+                        <li>Combined redirection</li>
+                        <li>Works with all commands</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔗</div>
+                    <h3>Pipeline Support</h3>
+                    <ul>
+                        <li>Multi-command pipelines</li>
+                        <li>Unlimited chaining with |</li>
+                        <li>Mix builtins & external programs</li>
+                        <li>Proper I/O handling</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📜</div>
+                    <h3>Command History</h3>
+                    <ul>
+                        <li>Persistent history file</li>
+                        <li>Arrow key navigation</li>
+                        <li>History management (-r, -w, -a)</li>
+                        <li>Smart command tracking</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">⌨️</div>
+                    <h3>Tab Completion</h3>
+                    <ul>
+                        <li>Auto-complete commands</li>
+                        <li>Smart suggestions</li>
+                        <li>Cross-platform support</li>
+                        <li>GNU readline & libedit</li>
+                    </ul>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🏗️</div>
+                    <h3>Modular Design</h3>
+                    <ul>
+                        <li>Type-safe dataclasses</li>
+                        <li>Proper subprocess management</li>
+                        <li>Clean architecture</li>
+                        <li>Well-documented code</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <h2>💻 Interactive Demo</h2>
+            
+            <div class="demo-section">
+                <div><span class="command">$ echo Hello, World!</span></div>
+                <div class="output">Hello, World!</div>
+                <br>
+                <div><span class="command">$ ls | grep .py | wc -l</span></div>
+                <div class="output">5</div>
+                <br>
+                <div><span class="command">$ echo "test" > output.txt</span></div>
+                <div><span class="command">$ cat output.txt</span></div>
+                <div class="output">test</div>
+                <br>
+                <div><span class="command">$ history</span></div>
+                <div class="output">    1  echo Hello, World!</div>
+                <div class="output">    2  ls | grep .py | wc -l</div>
+                <div class="output">    3  echo "test" > output.txt</div>
+                <div class="output">    4  cat output.txt</div>
+                <div class="output">    5  history</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <h2>📋 Builtin Commands</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Command</th>
+                        <th>Description</th>
+                        <th>Examples</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>exit [code]</code></td>
+                        <td>Exit the shell with optional exit code</td>
+                        <td><code>exit</code>, <code>exit 0</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>echo &lt;args&gt;</code></td>
+                        <td>Print arguments to stdout</td>
+                        <td><code>echo hello world</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>type &lt;cmd&gt;</code></td>
+                        <td>Show if command is builtin or external</td>
+                        <td><code>type echo</code>, <code>type ls</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>pwd</code></td>
+                        <td>Print current working directory</td>
+                        <td><code>pwd</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>cd [dir]</code></td>
+                        <td>Change directory</td>
+                        <td><code>cd /tmp</code>, <code>cd ~</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>history [N]</code></td>
+                        <td>Display command history</td>
+                        <td><code>history</code>, <code>history 10</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="content">
+            <h2>🚀 Getting Started</h2>
+            
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>Python 3.6+</li>
+                <li><code>uv</code> package manager (recommended)</li>
+                <li>Unix-like environment (Linux, macOS, WSL)</li>
+            </ul>
+            
+            <h3>Installation</h3>
+            <div class="demo-section">
+                <div><span class="command"># Clone the repository</span></div>
+                <div>$ git clone https://github.com/kaifcoder/codecrafters-shell.git</div>
+                <div>$ cd codecrafters-shell</div>
+                <br>
+                <div><span class="command"># Install uv</span></div>
+                <div>$ curl -LsSf https://astral.sh/uv/install.sh | sh</div>
+                <br>
+                <div><span class="command"># Run the shell</span></div>
+                <div>$ ./your_program.sh</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <h2>✅ Features Checklist</h2>
+            
+            <div class="checklist">
+                <div class="checklist-item">REPL with prompt</div>
+                <div class="checklist-item">External program execution</div>
+                <div class="checklist-item">Builtin commands</div>
+                <div class="checklist-item">PATH resolution</div>
+                <div class="checklist-item">Quote handling</div>
+                <div class="checklist-item">I/O redirection</div>
+                <div class="checklist-item">Pipelines</div>
+                <div class="checklist-item">Tab completion</div>
+                <div class="checklist-item">Command history</div>
+                <div class="checklist-item">History navigation</div>
+                <div class="checklist-item">History persistence</div>
+                <div class="checklist-item">History management</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <h2>🎯 Technical Highlights</h2>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>Cross-Platform Compatibility</h3>
+                    <p>Detects GNU readline vs libedit (macOS), handles different key bindings, and uses OS-agnostic path handling.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3>Smart History Management</h3>
+                    <p>Tracks last write position per file for <code>-a</code> flag, prevents duplicate appends, and filters empty commands.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <h3>Robust Pipeline Execution</h3>
+                    <p>Handles builtin-to-external and external-to-builtin pipes with string buffering and proper process cleanup.</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>🏆 Part of the <a href="https://codecrafters.io" style="color: white; text-decoration: underline;">CodeCrafters</a> "Build Your Own Shell" challenge</p>
+            <p style="margin-top: 20px;">Built with ❤️ by <a href="https://github.com/kaifcoder" style="color: white; text-decoration: underline;">kaifcoder</a></p>
+            <p style="margin-top: 20px; opacity: 0.8;">MIT License - Free to use for learning purposes</p>
+        </footer>
+    </div>
+</body>
+</html>
