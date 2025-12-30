@@ -1,0 +1,138 @@
+.installation {
+  background: var(--dark);
+  position: relative;
+}
+
+.installation-steps {
+  max-width: 800px;
+  margin: 0 auto 80px;
+}
+
+.installation-step {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 40px;
+  align-items: flex-start;
+}
+
+.step-number {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 900;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+.requirements {
+  background: var(--gray);
+  border-radius: 16px;
+  padding: 40px;
+  margin-bottom: 60px;
+}
+
+.requirements h3 {
+  font-size: 28px;
+  margin-bottom: 30px;
+  text-align: center;
+  color: var(--text);
+}
+
+.requirements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.requirement {
+  background: var(--light-gray);
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s;
+}
+
+.requirement:hover {
+  transform: translateY(-5px);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.req-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.req-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.req-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.cta-section {
+  text-align: center;
+  padding: 60px 40px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.cta-section h3 {
+  font-size: 36px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cta-section p {
+  font-size: 18px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .installation-step {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-number {
+    margin: 0 auto;
+  }
+
+  .requirements-grid {
+    grid-template-columns: 1fr;
+  }
+}

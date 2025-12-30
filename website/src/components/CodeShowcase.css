@@ -1,0 +1,88 @@
+.code-showcase {
+  background: var(--gray);
+  position: relative;
+}
+
+.code-examples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 30px;
+}
+
+.code-example {
+  position: relative;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.code-header h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.copy-button {
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.copy-button:hover {
+  background: rgba(0, 212, 255, 0.2);
+}
+
+.code-example .terminal {
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.code-example .terminal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.code-example .terminal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.code-example .terminal-content::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.code-example .terminal-content::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+}
+
+.code-example pre {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #d4d4d4;
+  font-family: 'Fira Code', 'Courier New', monospace;
+}
+
+.code-example code {
+  white-space: pre;
+}
+
+@media (max-width: 768px) {
+  .code-examples-grid {
+    grid-template-columns: 1fr;
+  }
+}
